@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Açougue Prime - Sistema de Gestão, PDV & Relatórios PDF</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fef2f2',
+                            100: '#ffe1e1',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b',
+                            900: '#7f1d1d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- jsPDF e jsPDF-AutoTable CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #printable-receipt, #printable-receipt * { visibility: visible; }
+            #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- HEADER / NAVEGAÇÃO -->
+    <header class="bg-brand-700 dark:bg-gray-800 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand -->
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-white/10 rounded-lg">
+                        <i class="fa-solid fa-drumstick-bite text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-black tracking-tight">Açougue <span class="text-red-300 font-light">Prime</span></h1>
+                        <p class="text-[10px] text-red-100 hidden sm:block">PDV & Gestão de Vendas/Fiado</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs (Desktop) -->
+                <nav class="hidden md:flex space-x-1">
+                    <button onclick="switchTab('pdv')" id="nav-pdv" class="nav-btn px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-2 bg-brand-800 text-white">
+                        <i class="fa-solid fa-cash-register"></i> PDV / Venda
+                    </button>
+                    <button onclick="switchTab('products')" id="nav-products" class="nav-btn px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-red-100 hover:bg-brand-600 hover:text-white">
+                        <i class="fa-solid fa-boxes-stacked"></i> Produtos
+                    </button>
+                    <button onclick="switchTab('customers')" id="nav-customers" class="nav-btn px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-red-100 hover:bg-brand-600 hover:text-white">
+                        <i class="fa-solid fa-users"></i> Clientes
+                    </button>
+                    <button onclick="switchTab('debts')" id="nav-debts" class="nav-btn px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-red-100 hover:bg-brand-600 hover:text-white relative">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Fiado / Débitos
+                        <span id="debt-badge" class="hidden absolute -top-1 -right-1 bg-yellow-400 text-gray-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full">!</span>
+                    </button>
+                    <button onclick="switchTab('reports')" id="nav-reports" class="nav-btn px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-2 text-red-100 hover:bg-brand-600 hover:text-white">
+                        <i class="fa-solid fa-file-pdf"></i> Relatórios PDF
+                    </button>
+                </nav>
+
+                <!-- Config & Dark Mode -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="toggleDarkMode()" class="p-2 text-red-100 hover:text-white hover:bg-brand-600 dark:hover:bg-gray-700 rounded-lg">
+                        <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+                        <i class="fa-solid fa-sun hidden dark:block text-lg text-yellow-300"></i>
+                    </button>
+                    <button onclick="openSettingsModal()" class="p-2 text-red-100 hover:text-white hover:bg-brand-600 dark:hover:bg-gray-700 rounded-lg">
+                        <i class="fa-solid fa-gear text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Bar -->
+        <div class="md:hidden flex overflow-x-auto bg-brand-800 dark:bg-gray-900 border-t border-brand-600 dark:border-gray-800 px-2 py-1 gap-1 text-xs hide-scrollbar">
+            <button onclick="switchTab('pdv')" id="mob-nav-pdv" class="mob-nav-btn flex-1 min-w-[65px] py-2 px-1 text-center text-white bg-brand-600 rounded">
+                <i class="fa-solid fa-cash-register block text-base mb-0.5"></i> PDV
+            </button>
+            <button onclick="switchTab('products')" id="mob-nav-products" class="mob-nav-btn flex-1 min-w-[65px] py-2 px-1 text-center text-red-200">
+                <i class="fa-solid fa-boxes-stacked block text-base mb-0.5"></i> Produtos
+            </button>
+            <button onclick="switchTab('customers')" id="mob-nav-customers" class="mob-nav-btn flex-1 min-w-[65px] py-2 px-1 text-center text-red-200">
+                <i class="fa-solid fa-users block text-base mb-0.5"></i> Clientes
+            </button>
+            <button onclick="switchTab('debts')" id="mob-nav-debts" class="mob-nav-btn flex-1 min-w-[65px] py-2 px-1 text-center text-red-200">
+                <i class="fa-solid fa-file-invoice-dollar block text-base mb-0.5"></i> Fiado
+            </button>
+            <button onclick="switchTab('reports')" id="mob-nav-reports" class="mob-nav-btn flex-1 min-w-[65px] py-2 px-1 text-center text-red-200">
+                <i class="fa-solid fa-file-pdf block text-base mb-0.5"></i> PDFs
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
+
+        <!-- 1. ABA PDV -->
+        <section id="tab-pdv" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Produtos para Seleção -->
+                <div class="lg:col-span-7 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-drumstick-bite text-brand-600"></i> Seleção de Carnes
+                        </h2>
+                        <div class="relative w-full sm:w-64">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="pdv-search-product" placeholder="Buscar Fígado, Boi..." oninput="renderPDVProducts()" class="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white">
+                        </div>
+                    </div>
+
+                    <div id="pdv-products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto max-h-[500px] p-1">
+                        <!-- JS Render -->
+                    </div>
+                </div>
+
+                <!-- Carrinho & Pagamento -->
+                <div class="lg:col-span-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700 mb-4">
+                            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <i class="fa-solid fa-cart-shopping text-brand-600"></i> Carrinho
+                            </h2>
+                            <button onclick="clearCart()" class="text-xs text-red-600 hover:text-red-800 font-medium">Limpar</button>
+                        </div>
+
+                        <!-- Seleção do Cliente -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Cliente da Venda</label>
+                            <div class="relative">
+                                <input type="text" id="pdv-customer-search" placeholder="Consumidor Final (ou selecione)" oninput="filterCustomerDropdown()" onfocus="showCustomerDropdown()" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white">
+                                <input type="hidden" id="selected-customer-id" value="">
+                                <button onclick="clearSelectedCustomer()" id="clear-customer-btn" class="hidden absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                                
+                                <div id="customer-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
+                                    <!-- JS Dropdown -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data da Venda -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Data da Venda</label>
+                            <input type="date" id="pdv-sale-date" class="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:text-white">
+                        </div>
+
+                        <!-- Itens do Carrinho -->
+                        <div class="space-y-2 max-h-[200px] overflow-y-auto pr-1 mb-4" id="cart-items-container">
+                            <!-- JS Items -->
+                        </div>
+                    </div>
+
+                    <!-- Totais e Formas de Pagamento -->
+                    <div class="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                        <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                            <span class="text-gray-600 dark:text-gray-300 font-semibold text-sm">TOTAL A PAGAR:</span>
+                            <span id="cart-total-display" class="text-2xl font-black text-brand-600 dark:text-red-400">R$ 0,00</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Forma de Pagamento</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" onclick="setPaymentMethod('PIX')" class="pay-method-btn px-3 py-2 border rounded-lg text-xs font-bold text-center border-gray-300 dark:border-gray-600" data-method="PIX">
+                                    <i class="fa-brands fa-pix text-emerald-500"></i> PIX
+                                </button>
+                                <button type="button" onclick="setPaymentMethod('Dinheiro')" class="pay-method-btn px-3 py-2 border rounded-lg text-xs font-bold text-center border-gray-300 dark:border-gray-600" data-method="Dinheiro">
+                                    <i class="fa-solid fa-money-bill-wave text-green-600"></i> Dinheiro
+                                </button>
+                                <button type="button" onclick="setPaymentMethod('Cartão')" class="pay-method-btn px-3 py-2 border rounded-lg text-xs font-bold text-center border-gray-300 dark:border-gray-600" data-method="Cartão">
+                                    <i class="fa-solid fa-credit-card text-blue-500"></i> Cartão
+                                </button>
+                                <button type="button" onclick="setPaymentMethod('Fiado')" class="pay-method-btn px-3 py-2 border border-yellow-500/50 rounded-lg text-xs font-bold text-center bg-yellow-50 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" data-method="Fiado">
+                                    <i class="fa-solid fa-clock text-yellow-600"></i> Fiado / A Prazo
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="finalizeSale()" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check-circle text-lg"></i> Finalizar Venda
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 2. ABA PRODUTOS -->
+        <section id="tab-products" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Estoque & Produtos</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Edite preços por quilo e cadastre novas carnes</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="exportProductsPDF()" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white font-medium rounded-lg text-sm shadow flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-red-400"></i> PDF do Estoque
+                    </button>
+                    <button onclick="openProductModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg text-sm shadow flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Novo Produto
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">
+                            <tr>
+                                <th class="px-6 py-3">Produto</th>
+                                <th class="px-6 py-3">Preço / KG</th>
+                                <th class="px-6 py-3">Estoque Atual</th>
+                                <th class="px-6 py-3 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- JS Table -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ABA CLIENTES -->
+        <section id="tab-customers" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Clientes Cadastrados</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Gerencie limites de crédito e informações de contato</p>
+                </div>
+                <button onclick="openCustomerModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg text-sm shadow flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Cadastrar Cliente
+                </button>
+            </div>
+
+            <div class="relative max-w-md">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                <input type="text" id="search-customer-input" placeholder="Buscar por Nome ou Telefone..." oninput="renderCustomersTable()" class="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-white">
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">
+                            <tr>
+                                <th class="px-6 py-3">Cliente</th>
+                                <th class="px-6 py-3">Contato</th>
+                                <th class="px-6 py-3">Limite Fiado</th>
+                                <th class="px-6 py-3">Dívida Atual</th>
+                                <th class="px-6 py-3 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- JS Table -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. ABA FIADO / DÍVIDAS -->
+        <section id="tab-debts" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Controle de Fiado & Inadimplência</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Acompanhamento e quitação de saldos devedores</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="exportDebtsPDF()" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-medium rounded-lg text-sm shadow flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Baixar PDF Inadimplência
+                    </button>
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 px-4 py-2 rounded-xl flex items-center gap-3">
+                        <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">Total a Receber:</span>
+                        <span id="total-debt-sum" class="text-xl font-black text-yellow-600 dark:text-yellow-400">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">
+                            <tr>
+                                <th class="px-6 py-3">Cliente</th>
+                                <th class="px-6 py-3">Contato</th>
+                                <th class="px-6 py-3">Limite</th>
+                                <th class="px-6 py-3">Saldo Devedor</th>
+                                <th class="px-6 py-3 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- JS Table -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. ABA RELATÓRIOS PDF (CENTRALIZADA) -->
+        <section id="tab-reports" class="tab-content hidden space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Central de Relatórios PDF</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Gere e baixe relatórios formatados em PDF diretamente no seu navegador</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Relatório 1: Vendas por Período -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-3 bg-red-100 dark:bg-red-900/40 text-brand-600 dark:text-red-400 rounded-lg">
+                                <i class="fa-solid fa-calendar-days text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white">Relatório de Vendas por Período</h3>
+                                <p class="text-xs text-gray-500">Resumo de vendas, totais por PIX, Dinheiro, Cartão e Fiado.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 my-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Data Inicial</label>
+                                <input type="date" id="pdf-start-date" class="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">Data Final</label>
+                                <input type="date" id="pdf-end-date" class="w-full px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="generateSalesReportPDF()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-bold text-xs shadow flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Baixar PDF do Período
+                    </button>
+                </div>
+
+                <!-- Relatório 2: Extrato Fiado de Cliente -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-3 bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded-lg">
+                                <i class="fa-solid fa-user-tag text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white">Extrato de Fiado do Cliente</h3>
+                                <p class="text-xs text-gray-500">Histórico detalhado de compras, dívidas e quitações.</p>
+                            </div>
+                        </div>
+
+                        <div class="my-4">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Selecione o Cliente</label>
+                            <select id="pdf-customer-select" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs dark:text-white">
+                                <!-- JS Popula -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="generateCustomerPDFFromTab()" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Baixar Extrato em PDF
+                    </button>
+                </div>
+
+                <!-- Relatório 3: Vendas por Produto / KG -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-lg">
+                                <i class="fa-solid fa-scale-balanced text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white">Relatório de Produtos & Quilos Vendidos</h3>
+                                <p class="text-xs text-gray-500">Total acumulado de KG vendidos por tipo de carne e faturamento.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="exportProductsPDF()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow flex items-center justify-center gap-2 mt-4">
+                        <i class="fa-solid fa-file-pdf"></i> Baixar Relatório de Produtos
+                    </button>
+                </div>
+
+                <!-- Relatório 4: Inadimplência Geral -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="p-3 bg-purple-100 dark:bg-purple-900/40 text-purple-600 rounded-lg">
+                                <i class="fa-solid fa-users-slash text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white">Relatório Geral de Inadimplentes</h3>
+                                <p class="text-xs text-gray-500">Relação completa de clientes com saldo devedor pendente.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="exportDebtsPDF()" class="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs shadow flex items-center justify-center gap-2 mt-4">
+                        <i class="fa-solid fa-file-pdf"></i> Baixar PDF de Inadimplência
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: PRODUTO -->
+    <div id="product-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="product-modal-title" class="text-lg font-bold text-gray-900 dark:text-white">Novo Produto</h3>
+                <button onclick="closeProductModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="product-form" onsubmit="saveProduct(event)" class="space-y-4">
+                <input type="hidden" id="product-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Nome do Produto / Carne</label>
+                    <input type="text" id="product-name" required placeholder="Ex: Picanha, Fígado..." class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Preço / KG (R$)</label>
+                        <input type="number" step="0.01" min="0" id="product-price" required placeholder="39.90" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Estoque (KG)</label>
+                        <input type="number" step="0.001" min="0" id="product-stock" required placeholder="50.0" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded text-xs font-semibold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded text-xs font-bold shadow">Salvar Produto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CLIENTE -->
+    <div id="customer-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="customer-modal-title" class="text-lg font-bold text-gray-900 dark:text-white">Novo Cliente</h3>
+                <button onclick="closeCustomerModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="customer-form" onsubmit="saveCustomer(event)" class="space-y-4">
+                <input type="hidden" id="customer-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Nome Completo</label>
+                    <input type="text" id="customer-name" required placeholder="Nome do cliente" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Telefone</label>
+                    <input type="text" id="customer-phone" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Endereço</label>
+                    <input type="text" id="customer-address" placeholder="Rua, número" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Limite Crédito Fiado (R$)</label>
+                    <input type="number" step="0.01" min="0" id="customer-limit" value="200.00" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="closeCustomerModal()" class="px-4 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded text-xs font-semibold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded text-xs font-bold shadow">Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALHES CLIENTE E DÍVIDAS -->
+    <div id="customer-detail-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-start mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h3 id="detail-customer-name" class="text-xl font-bold text-gray-900 dark:text-white">Nome do Cliente</h3>
+                    <p id="detail-customer-info" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                </div>
+                <button onclick="closeCustomerDetailModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="overflow-y-auto flex-1 space-y-6 pr-1">
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <span class="text-xs uppercase text-gray-500 font-semibold">Saldo Devedor Atual</span>
+                        <p id="detail-customer-debt" class="text-2xl font-black text-red-600 dark:text-red-400">R$ 0,00</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="generateSingleCustomerPDF()" class="px-3 py-2 bg-gray-700 hover:bg-gray-800 text-white font-medium text-xs rounded-lg shadow flex items-center gap-1">
+                            <i class="fa-solid fa-file-pdf"></i> Baixar Extrato PDF
+                        </button>
+                        <button onclick="openPaymentModal()" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-medium text-xs rounded-lg shadow flex items-center gap-1">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> Quitar / Abater
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold text-gray-800 dark:text-white uppercase mb-2">Extrato de Débitos e Pagamentos</h4>
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <table class="w-full text-left text-xs text-gray-600 dark:text-gray-300">
+                            <thead class="bg-gray-100 dark:bg-gray-700 uppercase">
+                                <tr>
+                                    <th class="p-2.5">Data</th>
+                                    <th class="p-2.5">Tipo</th>
+                                    <th class="p-2.5">Descrição</th>
+                                    <th class="p-2.5 text-right">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customer-ledger-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <!-- JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR PAGAMENTO DE DÍVIDA -->
+    <div id="pay-debt-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Quitar / Abater Dívida</h3>
+            <form onsubmit="submitDebtPayment(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Valor Recebido (R$)</label>
+                    <input type="number" step="0.01" id="pay-debt-amount" required class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Data</label>
+                    <input type="date" id="pay-debt-date" required class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Forma de Pagamento</label>
+                    <select id="pay-debt-method" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm dark:text-white">
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão">Cartão</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closePaymentModal()" class="px-3 py-1.5 border border-gray-300 text-gray-700 dark:text-gray-300 rounded text-xs">Cancelar</button>
+                    <button type="submit" class="px-4 py-1.5 bg-green-600 text-white rounded text-xs font-bold shadow">Confirmar Pagamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIGURAÇÕES / BACKUP -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Configurações e Backup</h3>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-4 text-sm">
+                <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 class="font-bold text-gray-800 dark:text-white mb-1">Exportar Backup</h4>
+                    <button onclick="exportBackup()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded shadow flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Baixar JSON Backup
+                    </button>
+                </div>
+
+                <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 class="font-bold text-gray-800 dark:text-white mb-1">Restaurar Backup</h4>
+                    <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="importBackup(event)">
+                    <button onclick="document.getElementById('import-file-input').click()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded shadow flex items-center gap-2">
+                        <i class="fa-solid fa-upload"></i> Importar JSON
+                    </button>
+                </div>
+
+                <div class="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+                    <button onclick="resetData()" class="text-xs text-red-600 hover:underline">Resetar Dados</button>
+                    <button onclick="closeSettingsModal()" class="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded text-xs font-semibold">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPROVANTE OCULTO IMPRESSÃO -->
+    <div id="printable-receipt" class="hidden p-4 text-black bg-white max-w-sm mx-auto font-mono text-xs">
+        <div class="text-center font-bold text-sm mb-1">AÇOUGUE PRIME</div>
+        <div class="text-center mb-3">Comprovante de Venda</div>
+        <div class="border-b border-dashed border-black my-2"></div>
+        <div id="receipt-date-id" class="mb-2"></div>
+        <div id="receipt-customer-info" class="mb-2"></div>
+        <div class="border-b border-dashed border-black my-2"></div>
+        <div id="receipt-items-list" class="space-y-1 mb-2"></div>
+        <div class="border-b border-dashed border-black my-2"></div>
+        <div id="receipt-total" class="font-bold text-sm text-right"></div>
+        <div id="receipt-payment-method" class="text-right"></div>
+        <div class="border-b border-dashed border-black my-2"></div>
+        <div class="text-center mt-4">Obrigado pela preferência!</div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[100] space-y-2 pointer-events-none"></div>
+
+    <!-- SCRIPT DE LÓGICA E PDFS -->
+    <script>
+        // ESTADO INICIAL
+        const DEFAULT_PRODUCTS = [
+            { id: '1', name: 'Fígado', price: 18.90, stock: 35.5 },
+            { id: '2', name: 'Carne de Boi (Acém)', price: 34.90, stock: 50.0 }
+        ];
+
+        const DEFAULT_CUSTOMERS = [
+            { id: '1', name: 'João Silva', phone: '(11) 98888-7777', address: 'Rua das Flores, 123', limit: 300.00, debt: 0 }
+        ];
+
+        let state = {
+            products: [],
+            customers: [],
+            sales: [],
+            debtLogs: [],
+            cart: [],
+            selectedPayment: 'Dinheiro',
+            selectedCustomerId: null
+        };
+
+        // CARREGAMENTO INICIAL
+        window.onload = function() {
+            loadFromStorage();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('pdv-sale-date').value = today;
+            document.getElementById('pdf-start-date').value = today;
+            document.getElementById('pdf-end-date').value = today;
+
+            renderAll();
+        };
+
+        function loadFromStorage() {
+            const p = localStorage.getItem('prime_products');
+            const c = localStorage.getItem('prime_customers');
+            const s = localStorage.getItem('prime_sales');
+            const d = localStorage.getItem('prime_debts');
+
+            state.products = p ? JSON.parse(p) : DEFAULT_PRODUCTS;
+            state.customers = c ? JSON.parse(c) : DEFAULT_CUSTOMERS;
+            state.sales = s ? JSON.parse(s) : [];
+            state.debtLogs = d ? JSON.parse(d) : [];
+
+            saveToStorage();
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('prime_products', JSON.stringify(state.products));
+            localStorage.setItem('prime_customers', JSON.stringify(state.customers));
+            localStorage.setItem('prime_sales', JSON.stringify(state.sales));
+            localStorage.setItem('prime_debts', JSON.stringify(state.debtLogs));
+        }
+
+        // ALTERAR ABAS
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-800', 'text-white');
+                btn.classList.add('text-red-100');
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-brand-800', 'text-white');
+                activeNav.classList.remove('text-red-100');
+            }
+
+            if (tabId === 'debts') renderDebtsTab();
+            if (tabId === 'reports') populateCustomerSelectForPDF();
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function renderAll() {
+            renderPDVProducts();
+            renderCart();
+            renderProductsTable();
+            renderCustomersTable();
+            renderDebtsTab();
+            updateDebtBadge();
+            populateCustomerSelectForPDF();
+        }
+
+        // MÓDULO PDV
+        function renderPDVProducts() {
+            const grid = document.getElementById('pdv-products-grid');
+            const query = document.getElementById('pdv-search-product').value.toLowerCase();
+            const filtered = state.products.filter(p => p.name.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-8 text-center text-gray-400 text-xs">Nenhum produto encontrado</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div onclick="addToCart('${p.id}')" class="p-3 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl cursor-pointer hover:border-brand-500 hover:shadow-md transition-all flex flex-col justify-between group">
+                    <div>
+                        <span class="font-bold text-gray-800 dark:text-white text-sm block group-hover:text-brand-600">${p.name}</span>
+                        <span class="text-[10px] text-gray-500 dark:text-gray-400">Estoque: ${p.stock.toFixed(3)} KG</span>
+                    </div>
+                    <div class="mt-2 text-right">
+                        <span class="text-xs font-extrabold text-brand-600 dark:text-red-400">R$ ${p.price.toFixed(2)}/kg</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(productId) {
+            const product = state.products.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = state.cart.find(item => item.productId === productId);
+            if (existing) {
+                existing.qtyKg += 0.5;
+            } else {
+                state.cart.push({ productId: product.id, name: product.name, price: product.price, qtyKg: 1.0 });
+            }
+            renderCart();
+            showToast(`Adicionado ${product.name}`);
+        }
+
+        function updateCartQty(productId, qty) {
+            const item = state.cart.find(i => i.productId === productId);
+            if (item) {
+                item.qtyKg = parseFloat(qty) || 0;
+                if (item.qtyKg <= 0) removeFromCart(productId);
+            }
+            renderCart();
+        }
+
+        function removeFromCart(productId) {
+            state.cart = state.cart.filter(i => i.productId !== productId);
+            renderCart();
+        }
+
+        function clearCart() {
+            state.cart = [];
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const totalDisplay = document.getElementById('cart-total-display');
+
+            if (state.cart.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-gray-400 text-xs">Carrinho vazio</div>`;
+                totalDisplay.innerText = 'R$ 0,00';
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = state.cart.map(item => {
+                const subtotal = item.price * item.qtyKg;
+                total += subtotal;
+                return `
+                    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-xs">
+                        <div class="flex-1">
+                            <span class="font-bold text-gray-800 dark:text-white block">${item.name}</span>
+                            <span class="text-[10px] text-gray-400">R$ ${item.price.toFixed(2)}/kg</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" step="0.05" min="0.01" value="${item.qtyKg}" onchange="updateCartQty('${item.productId}', this.value)" class="w-16 px-1 py-0.5 text-center bg-white dark:bg-gray-800 border rounded font-bold dark:text-white">
+                            <span class="font-bold w-16 text-right">R$ ${subtotal.toFixed(2)}</span>
+                            <button onclick="removeFromCart('${item.productId}')" class="text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            totalDisplay.innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        function setPaymentMethod(method) {
+            state.selectedPayment = method;
+            document.querySelectorAll('.pay-method-btn').forEach(btn => {
+                if (btn.dataset.method === method) {
+                    btn.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50', 'dark:bg-brand-900/30');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-brand-500', 'bg-brand-50', 'dark:bg-brand-900/30');
+                }
+            });
+        }
+
+        function showCustomerDropdown() {
+            document.getElementById('customer-dropdown').classList.remove('hidden');
+            filterCustomerDropdown();
+        }
+
+        function filterCustomerDropdown() {
+            const input = document.getElementById('pdv-customer-search').value.toLowerCase();
+            const dropdown = document.getElementById('customer-dropdown');
+            const filtered = state.customers.filter(c => c.name.toLowerCase().includes(input) || c.phone.includes(input));
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = `<div class="p-2 text-xs text-gray-400 text-center">Nenhum cliente</div>`;
+                return;
+            }
+
+            dropdown.innerHTML = filtered.map(c => `
+                <div onclick="selectCustomerForPDV('${c.id}', '${c.name}')" class="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs flex justify-between items-center">
+                    <div>
+                        <span class="font-bold text-gray-800 dark:text-white block">${c.name}</span>
+                        <span class="text-[10px] text-gray-400">Tel: ${c.phone || '-'}</span>
+                    </div>
+                    ${c.debt > 0 ? `<span class="text-[10px] text-red-600 font-bold">Deve R$ ${c.debt.toFixed(2)}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectCustomerForPDV(id, name) {
+            state.selectedCustomerId = id;
+            document.getElementById('selected-customer-id').value = id;
+            document.getElementById('pdv-customer-search').value = name;
+            document.getElementById('customer-dropdown').classList.add('hidden');
+            document.getElementById('clear-customer-btn').classList.remove('hidden');
+        }
+
+        function clearSelectedCustomer() {
+            state.selectedCustomerId = null;
+            document.getElementById('selected-customer-id').value = '';
+            document.getElementById('pdv-customer-search').value = '';
+            document.getElementById('clear-customer-btn').classList.add('hidden');
+        }
+
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('customer-dropdown');
+            const input = document.getElementById('pdv-customer-search');
+            if (!dropdown.contains(e.target) && e.target !== input) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        function finalizeSale() {
+            if (state.cart.length === 0) {
+                showToast('Carrinho vazio!', 'error');
+                return;
+            }
+
+            const saleDate = document.getElementById('pdv-sale-date').value;
+            if (!saleDate) {
+                showToast('Informe a data da venda!', 'error');
+                return;
+            }
+
+            const customer = state.selectedCustomerId ? state.customers.find(c => c.id === state.selectedCustomerId) : null;
+            const total = state.cart.reduce((sum, i) => sum + (i.price * i.qtyKg), 0);
+
+            // Validação Fiado
+            if (state.selectedPayment === 'Fiado') {
+                if (!customer) {
+                    showToast('Selecione um cliente para venda FIADO!', 'error');
+                    return;
+                }
+                const newDebtTotal = customer.debt + total;
+                if (customer.limit && newDebtTotal > customer.limit) {
+                    showToast(`Limite excedido! Limite R$${customer.limit.toFixed(2)}, Atual: R$${customer.debt.toFixed(2)}`, 'error');
+                    return;
+                }
+            }
+
+            // Gravar Venda
+            const sale = {
+                id: 'V' + Date.now(),
+                date: saleDate,
+                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                customerId: customer ? customer.id : null,
+                customerName: customer ? customer.name : 'Consumidor Final',
+                items: [...state.cart],
+                total: total,
+                paymentMethod: state.selectedPayment
+            };
+
+            // Atualizar Estoque
+            state.cart.forEach(item => {
+                const prod = state.products.find(p => p.id === item.productId);
+                if (prod) prod.stock = Math.max(0, prod.stock - item.qtyKg);
+            });
+
+            // Se for Fiado
+            if (state.selectedPayment === 'Fiado' && customer) {
+                customer.debt += total;
+                state.debtLogs.push({
+                    id: 'D' + Date.now(),
+                    customerId: customer.id,
+                    date: saleDate,
+                    type: 'DEBT',
+                    amount: total,
+                    description: `Venda #${sale.id}`
+                });
+            }
+
+            state.sales.push(sale);
+            saveToStorage();
+
+            showToast('Venda finalizada com sucesso!', 'success');
+
+            if (confirm('Deseja imprimir o comprovante?')) {
+                printReceipt(sale);
+            }
+
+            clearCart();
+            clearSelectedCustomer();
+            renderAll();
+        }
+
+        function printReceipt(sale) {
+            document.getElementById('receipt-date-id').innerText = `Data: ${sale.date} ${sale.timestamp} | Venda #${sale.id}`;
+            document.getElementById('receipt-customer-info').innerText = `Cliente: ${sale.customerName}`;
+            document.getElementById('receipt-items-list').innerHTML = sale.items.map(i => `
+                <div class="flex justify-between">
+                    <span>${i.name} (${i.qtyKg}kg x R$${i.price.toFixed(2)})</span>
+                    <span>R$ ${(i.qtyKg * i.price).toFixed(2)}</span>
+                </div>
+            `).join('');
+            document.getElementById('receipt-total').innerText = `TOTAL: R$ ${sale.total.toFixed(2)}`;
+            document.getElementById('receipt-payment-method').innerText = `Pagamento: ${sale.paymentMethod}`;
+            window.print();
+        }
+
+        // MÓDULO PRODUTOS
+        function renderProductsTable() {
+            const tbody = document.getElementById('products-table-body');
+            tbody.innerHTML = state.products.map(p => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${p.name}</td>
+                    <td class="px-6 py-4 text-brand-600 dark:text-red-400 font-bold">R$ ${p.price.toFixed(2)} / kg</td>
+                    <td class="px-6 py-4 font-semibold">${p.stock.toFixed(3)} KG</td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="editProduct('${p.id}')" class="text-blue-600"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-red-600"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openProductModal(productId = null) {
+            const modal = document.getElementById('product-modal');
+            if (productId) {
+                const prod = state.products.find(p => p.id === productId);
+                document.getElementById('product-modal-title').innerText = 'Editar Produto';
+                document.getElementById('product-id').value = prod.id;
+                document.getElementById('product-name').value = prod.name;
+                document.getElementById('product-price').value = prod.price;
+                document.getElementById('product-stock').value = prod.stock;
+            } else {
+                document.getElementById('product-modal-title').innerText = 'Novo Produto';
+                document.getElementById('product-form').reset();
+                document.getElementById('product-id').value = '';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('product-id').value;
+            const name = document.getElementById('product-name').value;
+            const price = parseFloat(document.getElementById('product-price').value);
+            const stock = parseFloat(document.getElementById('product-stock').value);
+
+            if (id) {
+                const p = state.products.find(item => item.id === id);
+                p.name = name; p.price = price; p.stock = stock;
+            } else {
+                state.products.push({ id: Date.now().toString(), name, price, stock });
+            }
+
+            saveToStorage();
+            closeProductModal();
+            renderAll();
+            showToast('Produto salvo!');
+        }
+
+        function editProduct(id) { openProductModal(id); }
+
+        function deleteProduct(id) {
+            if (confirm('Excluir produto?')) {
+                state.products = state.products.filter(p => p.id !== id);
+                saveToStorage();
+                renderAll();
+                showToast('Produto removido!');
+            }
+        }
+
+        // MÓDULO CLIENTES
+        function renderCustomersTable() {
+            const tbody = document.getElementById('customers-table-body');
+            const query = document.getElementById('search-customer-input').value.toLowerCase();
+            const filtered = state.customers.filter(c => c.name.toLowerCase().includes(query) || c.phone.includes(query));
+
+            tbody.innerHTML = filtered.map(c => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${c.name}</td>
+                    <td class="px-6 py-4">${c.phone || '-'}</td>
+                    <td class="px-6 py-4 text-xs font-semibold">R$ ${(c.limit || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 font-bold ${c.debt > 0 ? 'text-red-600' : 'text-gray-500'}">R$ ${c.debt.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="viewCustomerDetail('${c.id}')" class="text-emerald-600"><i class="fa-solid fa-eye"></i></button>
+                        <button onclick="editCustomer('${c.id}')" class="text-blue-600"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteCustomer('${c.id}')" class="text-red-600"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openCustomerModal(customerId = null) {
+            const modal = document.getElementById('customer-modal');
+            if (customerId) {
+                const c = state.customers.find(item => item.id === customerId);
+                document.getElementById('customer-modal-title').innerText = 'Editar Cliente';
+                document.getElementById('customer-id').value = c.id;
+                document.getElementById('customer-name').value = c.name;
+                document.getElementById('customer-phone').value = c.phone;
+                document.getElementById('customer-address').value = c.address;
+                document.getElementById('customer-limit').value = c.limit || 200;
+            } else {
+                document.getElementById('customer-modal-title').innerText = 'Novo Cliente';
+                document.getElementById('customer-form').reset();
+                document.getElementById('customer-id').value = '';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomerModal() {
+            document.getElementById('customer-modal').classList.add('hidden');
+        }
+
+        function saveCustomer(e) {
+            e.preventDefault();
+            const id = document.getElementById('customer-id').value;
+            const name = document.getElementById('customer-name').value;
+            const phone = document.getElementById('customer-phone').value;
+            const address = document.getElementById('customer-address').value;
+            const limit = parseFloat(document.getElementById('customer-limit').value) || 0;
+
+            if (id) {
+                const c = state.customers.find(item => item.id === id);
+                c.name = name; c.phone = phone; c.address = address; c.limit = limit;
+            } else {
+                state.customers.push({ id: Date.now().toString(), name, phone, address, limit, debt: 0 });
+            }
+
+            saveToStorage();
+            closeCustomerModal();
+            renderAll();
+            showToast('Cliente salvo!');
+        }
+
+        function editCustomer(id) { openCustomerModal(id); }
+
+        function deleteCustomer(id) {
+            const c = state.customers.find(item => item.id === id);
+            if (c && c.debt > 0) {
+                showToast('Não é possível excluir cliente com saldo devedor!', 'error');
+                return;
+            }
+            if (confirm('Excluir este cliente?')) {
+                state.customers = state.customers.filter(item => item.id !== id);
+                saveToStorage();
+                renderAll();
+                showToast('Cliente removido!');
+            }
+        }
+
+        // MÓDULO FIADO & EXTRATOS
+        function renderDebtsTab() {
+            const tbody = document.getElementById('debts-table-body');
+            const debtors = state.customers.filter(c => c.debt > 0);
+            const totalSum = debtors.reduce((sum, c) => sum + c.debt, 0);
+
+            document.getElementById('total-debt-sum').innerText = `R$ ${totalSum.toFixed(2)}`;
+
+            if (debtors.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-400">Nenhum débito em aberto.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = debtors.map(c => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">${c.name}</td>
+                    <td class="px-6 py-4 text-xs">${c.phone || '-'}</td>
+                    <td class="px-6 py-4 text-xs">R$ ${(c.limit||0).toFixed(2)}</td>
+                    <td class="px-6 py-4 font-black text-red-600 dark:text-red-400">R$ ${c.debt.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="viewCustomerDetail('${c.id}')" class="px-3 py-1 bg-brand-600 text-white text-xs font-bold rounded">Ver / Abater</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateDebtBadge() {
+            const hasDebt = state.customers.some(c => c.debt > 0);
+            const badge = document.getElementById('debt-badge');
+            if (hasDebt) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+
+        let activeDetailCustomerId = null;
+
+        function viewCustomerDetail(customerId) {
+            activeDetailCustomerId = customerId;
+            const c = state.customers.find(item => item.id === customerId);
+            if (!c) return;
+
+            document.getElementById('detail-customer-name').innerText = c.name;
+            document.getElementById('detail-customer-info').innerText = `Telefone: ${c.phone || 'Sem contato'} | Endereço: ${c.address || 'Não informado'}`;
+            document.getElementById('detail-customer-debt').innerText = `R$ ${c.debt.toFixed(2)}`;
+
+            const logs = state.debtLogs.filter(d => d.customerId === customerId);
+            const ledgerBody = document.getElementById('customer-ledger-tbody');
+
+            if (logs.length === 0) {
+                ledgerBody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-gray-400">Nenhum histórico de débitos.</td></tr>`;
+            } else {
+                ledgerBody.innerHTML = logs.map(l => `
+                    <tr>
+                        <td class="p-2.5">${l.date}</td>
+                        <td class="p-2.5 font-bold ${l.type === 'DEBT' ? 'text-red-500' : 'text-green-500'}">${l.type === 'DEBT' ? 'DÍVIDA' : 'PAGAMENTO'}</td>
+                        <td class="p-2.5 text-gray-500">${l.description}</td>
+                        <td class="p-2.5 text-right font-bold ${l.type === 'DEBT' ? 'text-red-600' : 'text-green-600'}">${l.type === 'DEBT' ? '+' : '-'} R$ ${l.amount.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('customer-detail-modal').classList.remove('hidden');
+        }
+
+        function closeCustomerDetailModal() {
+            document.getElementById('customer-detail-modal').classList.add('hidden');
+        }
+
+        function openPaymentModal() {
+            const c = state.customers.find(item => item.id === activeDetailCustomerId);
+            if (!c || c.debt <= 0) {
+                showToast('Cliente não possui débitos!', 'error');
+                return;
+            }
+            document.getElementById('pay-debt-amount').value = c.debt.toFixed(2);
+            document.getElementById('pay-debt-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('pay-debt-modal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('pay-debt-modal').classList.add('hidden');
+        }
+
+        function submitDebtPayment(e) {
+            e.preventDefault();
+            const c = state.customers.find(item => item.id === activeDetailCustomerId);
+            const amount = parseFloat(document.getElementById('pay-debt-amount').value);
+            const payDate = document.getElementById('pay-debt-date').value;
+            const payMethod = document.getElementById('pay-debt-method').value;
+
+            if (amount <= 0) return;
+
+            c.debt = Math.max(0, c.debt - amount);
+
+            state.debtLogs.push({
+                id: 'P' + Date.now(),
+                customerId: c.id,
+                date: payDate,
+                type: 'PAYMENT',
+                amount: amount,
+                description: `Pagamento de Dívida via ${payMethod}`
+            });
+
+            saveToStorage();
+            closePaymentModal();
+            viewCustomerDetail(c.id);
+            renderAll();
+            showToast('Pagamento registrado!', 'success');
+        }
+
+        function populateCustomerSelectForPDF() {
+            const select = document.getElementById('pdf-customer-select');
+            select.innerHTML = state.customers.map(c => `<option value="${c.id}">${c.name} ${c.debt > 0 ? `(Deve R$${c.debt.toFixed(2)})` : ''}</option>`).join('');
+        }
+
+        // RELATÓRIOS PDF
+        function getPDFHeader(doc, titleStr) {
+            doc.setFillColor(185, 28, 28);
+            doc.rect(0, 0, 210, 20, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text("AÇOUGUE PRIME - GESTÃO & PDV", 14, 13);
+
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(12);
+            doc.text(titleStr, 14, 28);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 33);
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, 35, 196, 35);
+        }
+
+        function generateSalesReportPDF() {
+            const startDate = document.getElementById('pdf-start-date').value;
+            const endDate = document.getElementById('pdf-end-date').value;
+
+            if (!startDate || !endDate) {
+                showToast('Selecione as datas inicial e final!', 'error');
+                return;
+            }
+
+            const filteredSales = state.sales.filter(s => s.date >= startDate && s.date <= endDate);
+
+            if (filteredSales.length === 0) {
+                showToast('Nenhuma venda encontrada no período selecionado!', 'error');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            getPDFHeader(doc, `Relatório de Vendas (${startDate} até ${endDate})`);
+
+            let totalPix = 0, totalMoney = 0, totalCard = 0, totalDebt = 0, totalGeral = 0;
+
+            const tableRows = filteredSales.map(s => {
+                totalGeral += s.total;
+                if (s.paymentMethod === 'PIX') totalPix += s.total;
+                if (s.paymentMethod === 'Dinheiro') totalMoney += s.total;
+                if (s.paymentMethod === 'Cartão') totalCard += s.total;
+                if (s.paymentMethod === 'Fiado') totalDebt += s.total;
+
+                const itensStr = s.items.map(i => `${i.name} (${i.qtyKg}kg)`).join(', ');
+                return [s.date, s.id, s.customerName, itensStr, s.paymentMethod, `R$ ${s.total.toFixed(2)}`];
+            });
+
+            doc.autoTable({
+                startY: 40,
+                head: [['Data', 'ID', 'Cliente', 'Itens', 'Pagamento', 'Valor']],
+                body: tableRows,
+                headStyles: { fillColor: [185, 28, 28] },
+                styles: { fontSize: 8 }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text("RESUMO FINANCEIRO DO PERÍODO:", 14, finalY);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.text(`- Em Dinheiro: R$ ${totalMoney.toFixed(2)}`, 14, finalY + 6);
+            doc.text(`- Em PIX: R$ ${totalPix.toFixed(2)}`, 14, finalY + 11);
+            doc.text(`- Em Cartão: R$ ${totalCard.toFixed(2)}`, 14, finalY + 16);
+            doc.text(`- Fiado / A Prazo: R$ ${totalDebt.toFixed(2)}`, 14, finalY + 21);
+
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`TOTAL GERAL VENDIDO: R$ ${totalGeral.toFixed(2)}`, 14, finalY + 29);
+
+            doc.save(`Relatorio_Vendas_${startDate}_a_${endDate}.pdf`);
+            showToast('PDF de vendas gerado com sucesso!', 'success');
+        }
+
+        function generateCustomerPDF(customerId) {
+            const c = state.customers.find(item => item.id === customerId);
+            if (!c) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            getPDFHeader(doc, `Extrato de Fiado / Cliente: ${c.name}`);
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Telefone: ${c.phone || 'Não informado'} | Endereço: ${c.address || 'Não informado'}`, 14, 40);
+            doc.text(`Limite de Crédito: R$ ${(c.limit || 0).toFixed(2)} | SALDO DEVEDOR ATUAL: R$ ${c.debt.toFixed(2)}`, 14, 45);
+
+            const logs = state.debtLogs.filter(d => d.customerId === customerId);
+
+            const tableRows = logs.map(l => [
+                l.date,
+                l.type === 'DEBT' ? 'DÍVIDA / COMPRA' : 'PAGAMENTO / QUITAÇÃO',
+                l.description,
+                `${l.type === 'DEBT' ? '+' : '-'} R$ ${l.amount.toFixed(2)}`
+            ]);
+
+            doc.autoTable({
+                startY: 50,
+                head: [['Data', 'Tipo', 'Descrição', 'Valor']],
+                body: tableRows,
+                headStyles: { fillColor: [185, 28, 28] },
+                styles: { fontSize: 8 }
+            });
+
+            doc.save(`Extrato_${c.name.replace(/\s+/g, '_')}.pdf`);
+            showToast('Extrato em PDF gerado!', 'success');
+        }
+
+        function generateSingleCustomerPDF() {
+            if (activeDetailCustomerId) generateCustomerPDF(activeDetailCustomerId);
+        }
+
+        function generateCustomerPDFFromTab() {
+            const customerId = document.getElementById('pdf-customer-select').value;
+            if (customerId) generateCustomerPDF(customerId);
+        }
+
+        function exportProductsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            getPDFHeader(doc, "Relatório Geral de Produtos & Estoque");
+
+            const productStats = state.products.map(p => {
+                let totalKgSold = 0;
+                let totalRevenue = 0;
+
+                state.sales.forEach(s => {
+                    s.items.forEach(item => {
+                        if (item.productId === p.id) {
+                            totalKgSold += item.qtyKg;
+                            totalRevenue += (item.qtyKg * item.price);
+                        }
+                    });
+                });
+
+                return [
+                    p.name,
+                    `R$ ${p.price.toFixed(2)} / kg`,
+                    `${p.stock.toFixed(3)} KG`,
+                    `${totalKgSold.toFixed(3)} KG`,
+                    `R$ ${totalRevenue.toFixed(2)}`
+                ];
+            });
+
+            doc.autoTable({
+                startY: 40,
+                head: [['Produto', 'Preço / KG', 'Estoque Atual', 'Total Vendido (KG)', 'Faturamento Total']],
+                body: productStats,
+                headStyles: { fillColor: [185, 28, 28] },
+                styles: { fontSize: 8 }
+            });
+
+            doc.save(`Estoque_E_Vendas_Produtos_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF de produtos exportado!', 'success');
+        }
+
+        function exportDebtsPDF() {
+            const debtors = state.customers.filter(c => c.debt > 0);
+
+            if (debtors.length === 0) {
+                showToast('Nenhum cliente com dívida pendente!', 'info');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            getPDFHeader(doc, "Relatório de Clientes Inadimplentes (Fiado)");
+
+            let totalDebts = 0;
+            const rows = debtors.map(c => {
+                totalDebts += c.debt;
+                return [
+                    c.name,
+                    c.phone || '-',
+                    `R$ ${(c.limit||0).toFixed(2)}`,
+                    `R$ ${c.debt.toFixed(2)}`
+                ];
+            });
+
+            doc.autoTable({
+                startY: 40,
+                head: [['Cliente', 'Telefone', 'Limite Autorizado', 'Saldo Devedor Total']],
+                body: rows,
+                headStyles: { fillColor: [185, 28, 28] },
+                styles: { fontSize: 9 }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`TOTAL GERAL A RECEBER EM FIADO: R$ ${totalDebts.toFixed(2)}`, 14, finalY);
+
+            doc.save(`Relatorio_Inadimplência_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF de Inadimplência gerado!', 'success');
+        }
+
+        // BACKUP & RESTAURAÇÃO
+        function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
+        function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+        function exportBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `backup_acougue_${new Date().toISOString().split('T')[0]}.json`);
+            dl.click();
+        }
+
+        function importBackup(e) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const imported = JSON.parse(evt.target.result);
+                    if (imported.products && imported.customers) {
+                        state = imported;
+                        saveToStorage();
+                        renderAll();
+                        showToast('Backup importado com sucesso!', 'success');
+                        closeSettingsModal();
+                    }
+                } catch (err) {
+                    showToast('Erro ao importar JSON!', 'error');
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        function resetData() {
+            if (confirm('Deseja restaurar as configurações originais de fábrica?')) {
+                localStorage.clear();
+                loadFromStorage();
+                renderAll();
+                closeSettingsModal();
+                showToast('Dados restaurados!');
+            }
+        }
+
+        // TOAST
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let bgClass = 'bg-gray-800 text-white';
+            if (type === 'success') bgClass = 'bg-green-600 text-white';
+            if (type === 'error') bgClass = 'bg-red-600 text-white';
+
+            toast.className = `${bgClass} px-4 py-3 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${message}`;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('opacity-0', 'translate-y-2'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
